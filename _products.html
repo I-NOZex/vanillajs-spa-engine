@@ -1,0 +1,17 @@
+<p data-bind-content="user_name" style="background:red">
+you are <value></value>
+</p>
+<span data-bind-attrs="title:labelTitle" >check the title</span>
+
+<p data-bind-content="xpto" data-bind-attrs="title:xpto2,class:xpto" style="background:orange">
+    hello <bind-value></bind-value>
+    </p>
+
+    <button id="btn-sayhello" data-bind-event="click:product-sayHello">tallk</button>a
+
+    <div data-bind-loop="products" style="background:lightblue">
+        <div class="item">
+            <p data-bind-content="name" data-bind-attrs="title:colors[0]">-</p>
+            <a data-bind-attrs="href:href"  data-bind-content="colors[1]" >-</a>
+        </div>
+    </div>
