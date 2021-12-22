@@ -1,44 +1,40 @@
 <template>
-    <h1>title: {{title}}</h1>
-    <ul>
-        <li -loop="items" :class="className">
-            #{{item}}
+    <h1 -content>title: {{title}} & {{test}}</h1>
+    <input -value="initVal">
+    <ul -loop="item => list">
+        <li :class="className">
+            #<span -content>{{item}}</span>
             <button _click="doSomething">click</button>
         </li>
     </ul>
     <button _click="hey">click</button>
-
-    <script>
-window.a  = 1;
-
-function foo() {
-    alert(1)
-}
-
-    let model = {
-        static : {
-            title: 'title',
-            items: [
-                'item 1',
-                'item 2'
-            ]
-        },
-    
-        computed : {
-    
-        },
-    
-        methods : {
-            doSomething: () => {
-                alert(1)
-                console.log('i did something')
-            }
-        }
-    }
-    </script>
 </template>
 
+<script>
+    window.a = 1;
 
-<style>
+    function foo() {
+        alert(1);
+    }
 
-</style>
+    let model = {
+        title: 'title 2',
+        test: 'test 2',
+
+        static: {
+            title: 'title',
+            items: ['item 1', 'item 2']
+        },
+
+        computed: {},
+
+        methods: {
+            doSomething: () => {
+                alert(1);
+                console.log('i did something');
+            }
+        }
+    };
+</script>
+
+<style></style>
