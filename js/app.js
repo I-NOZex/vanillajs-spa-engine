@@ -46,7 +46,7 @@ class EventBus {
 //#endregion
 
 //#region
-const BIND_ATTRIBUTES = '[-content],[-value],[data-bind-attrs],[-loop],[data-bind-if]';
+const BIND_ATTRIBUTES = ':not([-loop] [-content]),[-value],[data-bind-attrs],[-loop],[data-bind-if]';
 let obsElements = {};
 
 class ViewModel extends HTMLElement {
@@ -56,6 +56,7 @@ class ViewModel extends HTMLElement {
     scriptsPath = null;
     methods = null;
     model = null;
+    bindings = null;
     eventBus = new EventBus();
 
     static get observedAttributes() {
@@ -98,6 +99,7 @@ class ViewModel extends HTMLElement {
 
       const {viewModel, methods} = await import(this.scriptsPath);
       window.vm = this.model = viewModel.model;
+      window.db = this.bindings = viewModel.bindings;
 
       this.methods = methods;
 
@@ -163,7 +165,6 @@ class ViewModel extends HTMLElement {
 
     // to parse Object paths
     getObjPropByPath = (obj, path = '') => {
-        //console.log(obj[path], obj, path)
       if (path.split('.').length <= 1 && !path.match(/^\w+\[\d+\]/g)) return obj[path];
 
       /* ⚠ DONT USE THIS IN PRODUCTION */
@@ -185,7 +186,7 @@ class ViewModel extends HTMLElement {
             );
     };
 
-    mapBind = ($el, model, recursive = false) => {
+    mapBind = ($el, model, alias = null) => {
         const computeValue = (val) => {
             // ⚠ CLOSE YOUR EYES! IT'S EVAL TIME AGAIN 😂
             // this will allow as to perform extra processing to the data bind value 😎
@@ -225,29 +226,18 @@ class ViewModel extends HTMLElement {
 
         if ($el.hasAttribute('-content')) {
             const modelKeyMap = /\{\{(?<modelProp>[\w\._]+)\}\}/g;
-            let bindings = {}
 
             $el.innerHTML = $el.innerHTML.replace(modelKeyMap, (i, match) => {
-                let value = '';
-                if(recursive) {
-console.log($el.parentElement.cloneNode(true));
-
-                    const aliasModelIdx = model.findIndex(m => m != null);
-                    const aliasModel = model[aliasModelIdx];
-                    const aliasModelName = Object.keys(aliasModel)[0] ?? '';
-                    value =  this.getObjPropByPath(aliasModel[aliasModelName], match);
-                    bindings = {...bindings, ...{[`${aliasModelName}[${aliasModelIdx}].${match}`] : {target: $el, mutationAttr: 'content', replaceValue:`<bind>${value}</bind>`}}}
+                const value =  this.getObjPropByPath(model, match);
+                if(alias) {
+                    this.bindings.appendCollection(alias, match, {target: $el, mutationAttr: 'content', replaceValue:`<bind>${value}</bind>`})
                 } else {
-                    value =  this.getObjPropByPath(model, match);
-                    bindings = {...bindings, ...{[match] : {target: $el, mutationAttr: 'content', replaceValue:`<bind>${value}</bind>`}}}
-                    
+                    this.bindings.addItem({[match] : {target: $el, mutationAttr: 'content', replaceValue:`<bind>${value}</bind>`}})
                 }
-
            
-                recursive && console.log(model, match, value)
                 return `<bind>${value}</bind>`;
             })
-            this.model.__bindings__ = {...this.model.__bindings__, ...bindings}
+
 
             $el.removeAttribute('-content')
         }
@@ -257,17 +247,16 @@ console.log($el.parentElement.cloneNode(true));
             const prop = $el.getAttribute('-value');
             const dataBindValue =  this.getObjPropByPath(model, prop);
             $el.setAttribute('value', computeValue(dataBindValue));
-            this.model.__bindings__ = {
-                ...this.model.__bindings__,  
-                ...{[prop] : {target: $el, mutationAttr: 'value', replaceAttr: 'value'}}
-            }
+
+            this.bindings.addItem({[prop] : {target: $el, mutationAttr: 'value', replaceAttr: 'value'}})
+
 
             $el.addEventListener('keyup', () => this.model[prop] = isNaN(this.model[prop]) ? $el.value.toString() : Number($el.value))
 
             $el.removeAttribute('-value')
         }
         
-        if ($el.hasAttribute('-value')) {
+        /*if ($el.hasAttribute('-value')) {
             const prop = $el.getAttribute('-value');
             const dataBindValue =  this.getObjPropByPath(model, prop);
             $el.setAttribute('value', computeValue(dataBindValue));
@@ -279,7 +268,7 @@ console.log($el.parentElement.cloneNode(true));
             $el.addEventListener('keyup', () => this.model[prop] = isNaN(this.model[prop]) ? $el.value.toString() : Number($el.value))
 
             $el.removeAttribute('-value')
-        }        
+        }   */     
 
         if ($el.dataset.bindAttrs) {
             const dataBindAttrs = $el.dataset.bindAttrs
@@ -299,43 +288,50 @@ console.log($el.parentElement.cloneNode(true));
             const prop = $el.getAttribute('-loop');
 
             let itemAux, listAux;
-            if(prop.includes('=>')) {
-                [itemAux, listAux] = prop.replace(/\s/g,'').split('=>');
+            if(prop.includes(' in ')) {
+                [itemAux, listAux] = prop.split(' in ');
             }
+
+            const mappedProp = listAux ?? prop;
 
             let dataBindValues = this.getObjPropByPath(
                 model,
-                listAux
+                mappedProp
             );
             if (!dataBindValues) {
                 console.error(
                     `Property "${
-                        listAux ?? prop
+                        mappedProp
                     }" not found in model [${Object.keys(model)}]`
                 );
             }
 
-            console.log(dataBindValues, listAux, itemAux)
+            const renderFn = (dataBindValues) => {
+                this.bindings.cleanCollection(mappedProp);
+                dataBindValues?.forEach((subModel, idx) => {
+                    const $loopContainer = $el.firstElementChild.cloneNode(true);
+                    $el.appendChild($loopContainer);
 
-            $el.innerHTML = $el.firstElementChild.outerHTML; //to reset the template for model updates
+                    let mappedModel = [];
+                    let alias = `${mappedProp}`;
+                    if(itemAux) 
+                        mappedModel = {[itemAux]: subModel};
+                    else
+                        mappedModel = subModel;
 
-            dataBindValues?.forEach((subModel, idx) => {
-                const $loopContainer = $el.firstElementChild.cloneNode(true);
-                $el.appendChild($loopContainer);
+                    const $childBindContainer =
+                        $loopContainer.querySelectorAll('*');
 
-                let mappedModel = [];
-                if(itemAux) 
-                    mappedModel[idx] = {[listAux]: {[itemAux]: subModel}};
-                else
-                    mappedModel = subModel;
-
-                const $childBindContainer =
-                    $loopContainer.querySelectorAll('*');
-
-                $childBindContainer.forEach(($child) => {
-                    this.mapBind($child, mappedModel, true);
+                    $childBindContainer.forEach(($child) => {
+                        this.mapBind($child, mappedModel, alias);
+                    });
                 });
-            });
+            }
+
+            this.bindings.addCollection(mappedProp, {target: $el, mutationAttr: 'content', replaceTemplate: $el.innerHTML.trim(), render: renderFn, bindEvents: this.bindEvents})
+
+            renderFn(dataBindValues);
+
             $el.firstElementChild.remove();
         }
 
@@ -353,14 +349,17 @@ console.log($el.parentElement.cloneNode(true));
                 const attr = attrs[i];
                 if (!validEventAttrs.includes(attr.name)) return;
 
-                $el.addEventListener(attr.name.substr(1), this.methods[attr.value].bind(this.model));
+                let [methodName, args] = attr.value.split('(');
+                args = args?.replace(')', '').split(',') ?? [];
+
+                if(this.methods.hasOwnProperty(methodName)) {
+                    $el.addEventListener(attr.name.substr(1), (e) => this.methods[methodName].call(this.model, e, ...args));
+                } else {
+                    console.warn(`The method "${attr.value}" could not be found. Available methods: ${Object.keys(this.methods)}`)
+                }
             }
         });
     };
-}
-
-function doSomething() {
-    alert(1);
 }
 
 // Define the new element

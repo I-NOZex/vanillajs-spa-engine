@@ -1,12 +1,30 @@
 <template>
     <h1 -content>title: {{title}} & {{test}}</h1>
     <input -value="initVal">
-    <ul -loop="item => list">
-        <li :class="className">
-            #<span -content>{{item}}</span>
+    <h6>item in array</h1>
+    <ul -loop="arrrrrrr in enum">
+        <li :class="className" _click="listItemClick">
+            #<span -content>{{arrrrrrr}}</span>
             <button _click="doSomething">click</button>
         </li>
     </ul>
+    <hr>
+    <h6>item in list</h1>
+    <ol -loop="val in items">
+        <li :class="className" _click="listItemClick">
+            #<span -content>{{val.item}}</span>
+            <b _click="doSomething" _if="id=1">this is item 2</button>
+        </li>
+    </ol>
+    <hr>
+    <h6>loop list</h1>    
+    <ul -loop="items">
+        <li :class="className" _click="listItemClick">
+            #<span -content>{{item}}</span>
+            <b _click="doSomething" _if="id=1">this is item 2</button>
+        </li>
+    </ul>
+
     <button _click="hey">click</button>
 </template>
 
