@@ -49,7 +49,7 @@ class EventBus {
 const BIND_ATTRIBUTES = ':not([-loop] [-content]),[-value],[data-bind-attrs],[-loop],[data-bind-if]';
 let obsElements = {};
 
-class ViewModel extends HTMLElement {
+class DynamicView extends HTMLElement {
     shadow = null;
     wrapper = null;
     templatePath = null;
@@ -225,19 +225,38 @@ class ViewModel extends HTMLElement {
         }
 
         if ($el.hasAttribute('-content')) {
-            const modelKeyMap = /\{\{(?<modelProp>[\w\._]+)\}\}/g;
+            const modelKeyMap = /(\{\{(?<modelProp>[\w\._]+)\}\})/g;
+            
+            const cachedTemplate = $el.innerHTML;
 
-            $el.innerHTML = $el.innerHTML.replace(modelKeyMap, (i, match) => {
-                const value =  this.getObjPropByPath(model, match);
+
+            let matches = [...$el.textContent.matchAll(modelKeyMap)];
+
+            /*for (const match of matches) {
+                console.log(`Found ${match[0]} start=${match.index} end=${match.index + match[0].length}.`);
+            }*/
+
+            for(let i = matches.length-1; i >= 0; i--) {
+                const match = matches[i];
+                const value =  this.getObjPropByPath(model, match.groups.modelProp);
+
+                $el.firstChild.splitText(match.index)
+               // create new span node with content
+                var span = document.createElement("bind");
+                span.appendChild(document.createTextNode(value));
+
+                const rightNode = $el.firstChild.splitText(match.index);
+                // Split the text node into two and add new span
+                const targetBind = $el.insertBefore(span, rightNode);
+
                 if(alias) {
-                    this.bindings.appendCollection(alias, match, {target: $el, mutationAttr: 'content', replaceValue:`<bind>${value}</bind>`})
+                    this.bindings.appendCollection(alias, match.groups.modelProp, {target: targetBind, mutationAttr: 'content', replaceKey: alias})
                 } else {
-                    this.bindings.addItem({[match] : {target: $el, mutationAttr: 'content', replaceValue:`<bind>${value}</bind>`}})
+                    this.bindings.addItem({[match.groups.modelProp] : {target: targetBind, mutationAttr: 'content', replaceKey: match.groups.modelProp}})
                 }
-           
-                return `<bind>${value}</bind>`;
-            })
 
+                rightNode.nextSibling.textContent = rightNode.nextSibling.textContent.replace(modelKeyMap, '');
+            }
 
             $el.removeAttribute('-content')
         }
@@ -307,17 +326,19 @@ class ViewModel extends HTMLElement {
             }
 
             const renderFn = (dataBindValues) => {
-                this.bindings.cleanCollection(mappedProp);
+                //this.bindings.cleanCollection(mappedProp);
                 dataBindValues?.forEach((subModel, idx) => {
                     const $loopContainer = $el.firstElementChild.cloneNode(true);
                     $el.appendChild($loopContainer);
-
+                    
                     let mappedModel = [];
                     let alias = `${mappedProp}`;
                     if(itemAux) 
                         mappedModel = {[itemAux]: subModel};
                     else
                         mappedModel = subModel;
+                    
+                    console.log(itemAux)
 
                     const $childBindContainer =
                         $loopContainer.querySelectorAll('*');
@@ -363,5 +384,5 @@ class ViewModel extends HTMLElement {
 }
 
 // Define the new element
-customElements.define('view-model', ViewModel);
+customElements.define('view-model', DynamicView);
 //#endregion
