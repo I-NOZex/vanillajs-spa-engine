@@ -95,23 +95,37 @@ class ViewModel {
 
         if (Array.isArray(observable)) {
             observable.forEach(o => {
-                if ( value?.length !== oldValue?.length ) {
-                    console.log('re-render all')
-                    o.target.innerHTML = o.replaceTemplate;
-                    this.bindings.cleanCollectionItems(prop, o.id)
-                    o.render(value, o.id);
-                    o.bindEvents(o.target);
-                    o.target.firstElementChild.remove();
-                } else {
-                    console.log('update partial')
-                    Object.keys(o.$items).forEach((key, idx) => {
-                        o.$items[key].forEach((bind, idx) => {
-                            const newValue = (value[idx] instanceof Object) ? value[idx][bind.replaceKey] : value[idx];
-                            if (bind.mutationAttr === 'content') {
-                                bind.target.innerHTML = newValue ?? '';
-                            }
+                if(o?.bindType === 'collection') {
+                    if ( value?.length !== oldValue?.length ) {
+                        console.log('re-render all')
+                        o.target.innerHTML = o.replaceTemplate;
+                        this.bindings.cleanCollectionItems(prop, o.id)
+                        o.render(value, o.id);
+                        o.bindEvents(o.target);
+                        o.target.firstElementChild.remove();
+                    } else {
+                        console.log('update partial')
+                        Object.keys(o.$items).forEach((key, idx) => {
+                            o.$items[key].forEach((bind, idx) => {
+                                const newValue = (value[idx] instanceof Object) ? value[idx][bind.replaceKey] : value[idx];
+                                if (bind.mutationAttr === 'content') {
+                                    bind.target.innerHTML = newValue ?? '';
+                                }
+                            })
                         })
-                    })
+                    }
+                } else {
+                    if (o.mutationAttr === 'content') {
+                        o.target.innerHTML = value;
+                    } else if (o.mutationAttr === 'show') {
+                        o.target.style.display = value  ? '' : 'none';
+                    } else if (
+                        this.mutableHtmlAttributes.includes(o.mutationAttr) 
+                        &&
+                        this.mutableHtmlAttributes.includes(o.replaceAttr)
+                    ) {
+                        o.target.value = value;
+                    } 
                 }
             })
         } else if (observable.mutationAttr === 'content') {

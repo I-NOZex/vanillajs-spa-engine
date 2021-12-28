@@ -244,7 +244,7 @@ class DynamicView extends HTMLElement {
                 const computedA = getValue(a)
                 const computedB = getValue(b)
 
-                console.info(`Conditional rendering: ${computedA} ${operator} ${computedB}`, $el)
+                console.info(`Conditional visibility: ${computedA} ${operator} ${computedB}`, $el)
                 boolResult = eval(`'${computedA}' ${operator} ${computedB}`);
             } else if (fullMatch){
                 const negate = prop.startsWith('!') * 1;
@@ -307,7 +307,7 @@ class DynamicView extends HTMLElement {
             const dataBindValue =  this.getObjPropByPath(model, prop);
             $el.setAttribute('value', computeValue(dataBindValue));
 
-            this.bindings.addItem({[prop] : {target: $el, mutationAttr: 'value', replaceAttr: 'value'}})
+            this.bindings.addItem2(prop, {target: $el, mutationAttr: 'value', replaceAttr: 'value'})
 
 
             $el.addEventListener('keyup', () => this.model[prop] = isNaN(this.model[prop]) ? $el.value.toString() : Number($el.value))
@@ -387,7 +387,7 @@ class DynamicView extends HTMLElement {
             }
 
             const collectionId = uuidv4();
-            this.bindings.addCollection(mappedProp, collectionId, {target: $el, id: collectionId, mutationAttr: 'content', replaceTemplate: $el.innerHTML.trim(), render: renderFn, bindEvents: this.bindEvents})
+            this.bindings.addCollection(mappedProp, collectionId, {target: $el, id: collectionId, mutationAttr: 'content', bindType: 'collection', replaceTemplate: $el.innerHTML.trim(), render: renderFn, bindEvents: this.bindEvents})
 
 
             renderFn(dataBindValues, collectionId);
