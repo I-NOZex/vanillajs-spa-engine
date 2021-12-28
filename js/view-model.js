@@ -20,34 +20,36 @@ class Bindings {
 
         };
 
-        addCollection(bindListName, bindOwner) {
+        addCollection(bindListName, collectionId, bindOwner) {
             if (!this.#__bindings__[bindListName])
-                this.#__bindings__[bindListName] = {
-                    $self: bindOwner,
-                    $items: {},
-                    mutationAttr: 'collection'
-                };
+                this.#__bindings__[bindListName] = [{...bindOwner, ...{$items: {}}}];
+            else
+                this.#__bindings__[bindListName].push({...bindOwner, ...{$items: {}}});
+
         };
 
-        appendCollection(bindListName, bindItemName, bindItem) {
-            if (!this.#__bindings__[bindListName].$items[bindItemName])
-                this.#__bindings__[bindListName].$items[bindItemName] = [];
+        appendCollection(bindListName, bindOwnerId, bindItemName, bindItem) {
+            const collection = this.#__bindings__[bindListName].find(c => c.id === bindOwnerId);
+            if (!collection?.$items[bindItemName])
+                collection.$items[bindItemName] = [];
 
-            this.#__bindings__[bindListName].$items[bindItemName].push(bindItem);
+            collection.$items[bindItemName].push({...collection.$items[bindItemName], ...bindItem});
         };
 
         cleanCollection(bindListName) {
-            this.#__bindings__[bindListName].$items = {};
+            this.#__bindings__[bindListName].$items = [];
         }
 
-        cleanCollectionItems(bindListName, bindItemName) {
-            this.#__bindings__[bindListName].$items[bindItemName] = [];
+        cleanCollectionItems(bindListName, bindOwnerId) {
+            const collection = this.#__bindings__[bindListName].find(c => c.id === bindOwnerId);
+            collection.$items = [];
         }        
     }
 
 class ViewModel {
     model;
     bindings;
+    muteMutations = false;
 
     constructor(initialModel) {
         const _self = this;
@@ -62,7 +64,7 @@ class ViewModel {
             set(target, prop, value) {
                 LOG && console.log({ type: 'set', target, prop, value });
                 const oldValue = this.get(target, prop);
-                if (prop !== '__bindings__')
+                if (prop !== '__bindings__' && !this.muteMutations)
                     _self.updateUI(prop, value, oldValue);
                 return Reflect.set(target, prop, value);
             }
@@ -73,36 +75,37 @@ class ViewModel {
 
     updateUI(prop, value, oldValue) {
         let observable = this.bindings.getBinding(prop);
-
         if (!observable) {
             console.warn(
                 `Model has mutated but no UI bind to update could be found.\nProperty changed: "${prop}".`
             );
+            
             return;
         }
 
-        if (observable.mutationAttr === 'collection') {
-            const bindings = Object.values(observable.$items)[0];
-            console.log(Object.keys(observable.$items)[0])
-            bindings.forEach((bind, idx) => {
-                if (
-                    value.length !== oldValue.length &&
-                    bind.mutationAttr === 'content'
-                ) {
-                    observable.$self.target.innerHTML = observable.$self.replaceTemplate;
-                    this.bindings.cleanCollection(prop)
-                    observable.$self.render(value);
-                    observable.$self.bindEvents(bind.target);
-                    observable.$self.target.firstElementChild.remove();
+        this.muteMutations = true;
 
+        if (Array.isArray(observable)) {
+            observable.forEach(o => {
+                if ( value?.length !== oldValue?.length ) {
+                    console.log('re-render all')
+                    o.target.innerHTML = o.replaceTemplate;
+                    this.bindings.cleanCollectionItems(prop, o.id)
+                    o.render(value, o.id);
+                    o.bindEvents(o.target);
+                    o.target.firstElementChild.remove();
                 } else {
-                    const newValue = (value[idx] instanceof Object) ? value[idx][bind.replaceKey] : value[idx];
-                    if (bind.mutationAttr === 'content') {
-                        bind.target.innerHTML = newValue;
-                    }
+                    console.log('update partial')
+                    Object.keys(o.$items).forEach((key, idx) => {
+                        o.$items[key].forEach((bind, idx) => {
+                            const newValue = (value[idx] instanceof Object) ? value[idx][bind.replaceKey] : value[idx];
+                            if (bind.mutationAttr === 'content') {
+                                bind.target.innerHTML = newValue ?? '';
+                            }
+                        })
+                    })
                 }
-            });
-
+            })
         } else if (observable.mutationAttr === 'content') {
             observable.target.innerHTML = value;
         } else if (
@@ -115,6 +118,7 @@ class ViewModel {
                 'Model has mutated but no UI bind to update could be found'
             );
         }
+        this.muteMutations = false;
 
         LOG && console.log(observable);
     }

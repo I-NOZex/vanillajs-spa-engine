@@ -44,7 +44,11 @@ class EventBus {
     }
 }
 //#endregion
-
+function uuidv4() {
+    return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
+      (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
+    );
+  }
 //#region
 const BIND_ATTRIBUTES = ':not([-loop] [-content]),[-value],[data-bind-attrs],[-loop],[data-bind-if]';
 let obsElements = {};
@@ -64,6 +68,7 @@ class DynamicView extends HTMLElement {
     }
 
     constructor() {
+        console.time('Dynamic view bootstrap time')
         // Always call super first in constructor
         super();
 
@@ -103,8 +108,9 @@ class DynamicView extends HTMLElement {
 
       this.methods = methods;
 
-      this.bindData(this.wrapper, this.model);
-      this.bindEvents(this.wrapper);
+      await this.bindData(this.wrapper, this.model);
+      await this.bindEvents(this.wrapper);
+      console.timeEnd('Dynamic view bootstrap time')
 
       console.log('Custom square element added to page.');
       //updateStyle(this);
@@ -186,7 +192,7 @@ class DynamicView extends HTMLElement {
             );
     };
 
-    mapBind = ($el, model, alias = null) => {
+    mapBind = ($el, model, alias = null, collectionId) => {
         const computeValue = (val) => {
             // ⚠ CLOSE YOUR EYES! IT'S EVAL TIME AGAIN 😂
             // this will allow as to perform extra processing to the data bind value 😎
@@ -250,7 +256,16 @@ class DynamicView extends HTMLElement {
                 const targetBind = $el.insertBefore(span, rightNode);
 
                 if(alias) {
-                    this.bindings.appendCollection(alias, match.groups.modelProp, {target: targetBind, mutationAttr: 'content', replaceKey: alias})
+                    console.log(match.groups.modelProp)
+                    let replaceKey = match.groups.modelProp.split('.')
+                    replaceKey = Array.isArray(replaceKey) ? replaceKey[replaceKey.length-1] : replaceKey;
+
+                    this.bindings.appendCollection(
+                        alias, 
+                        collectionId, 
+                        match.groups.modelProp, 
+                        {target: targetBind, mutationAttr: 'content', replaceKey, ownerId: collectionId}
+                    );
                 } else {
                     this.bindings.addItem({[match.groups.modelProp] : {target: targetBind, mutationAttr: 'content', replaceKey: match.groups.modelProp}})
                 }
@@ -325,7 +340,7 @@ class DynamicView extends HTMLElement {
                 );
             }
 
-            const renderFn = (dataBindValues) => {
+            const renderFn = (dataBindValues, collectionId) => {
                 //this.bindings.cleanCollection(mappedProp);
                 dataBindValues?.forEach((subModel, idx) => {
                     const $loopContainer = $el.firstElementChild.cloneNode(true);
@@ -337,21 +352,21 @@ class DynamicView extends HTMLElement {
                         mappedModel = {[itemAux]: subModel};
                     else
                         mappedModel = subModel;
-                    
-                    console.log(itemAux)
 
                     const $childBindContainer =
                         $loopContainer.querySelectorAll('*');
 
                     $childBindContainer.forEach(($child) => {
-                        this.mapBind($child, mappedModel, alias);
+                        this.mapBind($child, mappedModel, alias, collectionId);
                     });
                 });
             }
 
-            this.bindings.addCollection(mappedProp, {target: $el, mutationAttr: 'content', replaceTemplate: $el.innerHTML.trim(), render: renderFn, bindEvents: this.bindEvents})
+            const collectionId = uuidv4();
+            this.bindings.addCollection(mappedProp, collectionId, {target: $el, id: collectionId, mutationAttr: 'content', replaceTemplate: $el.innerHTML.trim(), render: renderFn, bindEvents: this.bindEvents})
 
-            renderFn(dataBindValues);
+
+            renderFn(dataBindValues, collectionId);
 
             $el.firstElementChild.remove();
         }
