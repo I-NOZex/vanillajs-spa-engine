@@ -1,7 +1,7 @@
 <template>
     <h1 -content>title: {{title}} & {{test}}</h1>
     <input -value="initVal">
-    <h6>item in array</h1>
+    <h6 -if="title">item in array</h1>
     <ul -loop="arrrrrrr in enum">
         <li :class="className" _click="listItemClick">
             #<span -content>{{arrrrrrr}}</span>
@@ -13,7 +13,7 @@
     <ol -loop="val in items">
         <li :class="className" _click="listItemClick">
             #<span -content>{{val.item}}</span>
-            <b _click="doSomething" _if="id=1">this is item 2</button>
+            <button _click="doSomething" -if="val.item=='one'">this is item 2</button>
         </li>
     </ol>
     <hr>
@@ -21,7 +21,7 @@
     <ul -loop="items">
         <li :class="className" _click="listItemClick">
             #<span -content>{{item}}</span>
-            <b _click="doSomething" _if="id=1">this is item 2</button>
+            <button _click="doSomething" -if="id==1">this is item 1</button>
         </li>
     </ul>
 

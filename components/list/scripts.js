@@ -27,7 +27,7 @@ const viewModel = new ViewModel({
         { item: 'two', id: 2 }
     ],
 
-    enum: ['one 1', 'two 2'],
+    enum: [...Array(10).keys()],//['one 1', 'two 2'],
 
     static: {
         title: 'title 2',
