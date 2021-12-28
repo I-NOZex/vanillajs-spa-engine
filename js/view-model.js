@@ -20,6 +20,13 @@ class Bindings {
 
     };
 
+    addItem2(prop, watcher) {
+        if(!this.#__bindings__[prop]) this.#__bindings__[prop] = []
+        this.#__bindings__[prop].push(watcher);
+        console.log(this.#__bindings__)
+
+    };    
+
     addCollection(bindListName, collectionId, bindOwner) {
         if (!this.#__bindings__[bindListName])
             this.#__bindings__[bindListName] = [{...bindOwner, ...{$items: {}}}];

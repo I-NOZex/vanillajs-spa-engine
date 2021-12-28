@@ -50,7 +50,7 @@ function uuidv4() {
     );
   }
 //#region
-const BIND_ATTRIBUTES = ':not([-loop] [-content]),[-value],[data-bind-attrs],[-loop],[data-bind-if]';
+const BIND_ATTRIBUTES = ':not([-loop] [-content]),[-value],[-loop],[-if],[-show]';
 let obsElements = {};
 
 class DynamicView extends HTMLElement {
@@ -202,19 +202,18 @@ class DynamicView extends HTMLElement {
             return eval($el.dataset.bindFn)(val);
         };
 
+        const getValue = (val) => {
+            if(typeof (val*1) === 'number' && !Number.isNaN(val*1)) return (val*1);
+            else if(val.includes("'")) return val;
+            else if(['true','false'].includes(val)) return !!val;
+            return this.getObjPropByPath(model,val) ?? false;
+        }
+
         if ($el.hasAttribute('-if')) {
             const prop = $el.getAttribute('-if');
            // console.info(prop, model)
-            let dataBindValue;
             let [fullMatch, a, operator, b] = prop.match(/([\.a-zA-Z0-9_]+)(>|<|>=|<=|==|!=|===|!==)([\.a-zA-Z0-9_']+)/) ?? [prop];
             
-            const getValue = (val) => {
-                if(typeof (val*1) === 'number' && !Number.isNaN(val*1)) return (val*1);
-                else if(val.includes("'")) return val;
-                else if(['true','false'].includes(val)) return !!val;
-                return this.getObjPropByPath(model,val) ?? false;
-            }
-
             let boolResult = false;
             if(a && operator && b) {
                 const computedA = getValue(a)
@@ -234,6 +233,30 @@ class DynamicView extends HTMLElement {
 
             $el.removeAttribute('-if')
         }
+
+        if ($el.hasAttribute('-show')) {
+            const prop = $el.getAttribute('-show');
+           // console.info(prop, model)
+            let [fullMatch, a, operator, b] = prop.match(/([\.a-zA-Z0-9_]+)(>|<|>=|<=|==|!=|===|!==)([\.a-zA-Z0-9_']+)/) ?? [prop];
+            
+            let boolResult = false;
+            if(a && operator && b) {
+                const computedA = getValue(a)
+                const computedB = getValue(b)
+
+                console.info(`Conditional rendering: ${computedA} ${operator} ${computedB}`, $el)
+                boolResult = eval(`'${computedA}' ${operator} ${computedB}`);
+            } else if (fullMatch){
+                const negate = prop.startsWith('!') * 1;
+                boolResult = negate ? !getValue(fullMatch.substring(negate)) : getValue(fullMatch.substring(negate));
+            }
+
+            $el.style.display = boolResult ? '' : 'none'
+            //this.bindings.addItem({[prop] : {target: $el, mutationAttr: 'show', replaceAttr: 'value'}})
+            this.bindings.addItem2(prop , {target: $el, mutationAttr: 'show'})
+
+            $el.removeAttribute('-show')
+        }        
 
         if ($el.hasAttribute('-content')) {
             const modelKeyMap = /(\{\{(?<modelProp>[\w\._]+)\}\})/g;
@@ -268,7 +291,8 @@ class DynamicView extends HTMLElement {
                         {target: targetBind, mutationAttr: 'content', replaceKey, ownerId: collectionId}
                     );
                 } else {
-                    this.bindings.addItem({[match.groups.modelProp] : {target: targetBind, mutationAttr: 'content', replaceKey: match.groups.modelProp}})
+                    
+                    this.bindings.addItem2(match.groups.modelProp , {target: targetBind, mutationAttr: 'content', replaceKey: match.groups.modelProp})
                 }
 
                 rightNode.nextSibling.textContent = rightNode.nextSibling.textContent.replace(modelKeyMap, '');
