@@ -22,6 +22,8 @@ const viewModel = new ViewModel({
     test: 'test 2',
     initVal: 69,
 
+    classFromModel: 'my-class',
+
     items: [
         { item: 'one', id: 1 },
         { item: 'two', id: 2 }

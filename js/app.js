@@ -315,19 +315,15 @@ class DynamicView extends HTMLElement {
             $el.removeAttribute('-value')
         }
         
-        /*if ($el.hasAttribute('-value')) {
-            const prop = $el.getAttribute('-value');
+        if ($el.hasAttribute('-class')) {
+            const prop = $el.getAttribute('-class');
             const dataBindValue =  this.getObjPropByPath(model, prop);
-            $el.setAttribute('value', computeValue(dataBindValue));
-            this.model.__bindings__ = {
-                ...this.model.__bindings__,  
-                ...{[prop] : {target: $el, mutationAttr: 'value', replaceAttr: 'value'}}
-            }
+            $el.setAttribute('class', computeValue(dataBindValue));
 
-            $el.addEventListener('keyup', () => this.model[prop] = isNaN(this.model[prop]) ? $el.value.toString() : Number($el.value))
+            this.bindings.addItem2(prop, {target: $el, mutationAttr: 'class', replaceAttr: 'class'})
 
-            $el.removeAttribute('-value')
-        }   */     
+            $el.removeAttribute('-class')
+        }     
 
         if ($el.dataset.bindAttrs) {
             const dataBindAttrs = $el.dataset.bindAttrs
@@ -357,6 +353,7 @@ class DynamicView extends HTMLElement {
                 model,
                 mappedProp
             );
+
             if (!dataBindValues) {
                 console.error(
                     `Property "${
@@ -383,14 +380,21 @@ class DynamicView extends HTMLElement {
                     $childBindContainer.forEach(($child) => {
                         this.mapBind($child, mappedModel, alias, collectionId);
                     });
+
                 });
             }
 
+            if(mappedProp == 'users') {
+                console.log(dataBindValues)
+            }
             const collectionId = uuidv4();
             this.bindings.addCollection(mappedProp, collectionId, {target: $el, id: collectionId, mutationAttr: 'content', bindType: 'collection', replaceTemplate: $el.innerHTML.trim(), render: renderFn, bindEvents: this.bindEvents})
 
 
-            renderFn(dataBindValues, collectionId);
+            /*if(!Array.isArray(dataBindValues))
+                Object.keys(dataBindValues).forEach(k => renderFn(dataBindValues[k], collectionId))
+            else*/
+                renderFn(dataBindValues, collectionId);
 
             $el.firstElementChild.remove();
         }

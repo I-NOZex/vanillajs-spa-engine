@@ -124,7 +124,8 @@ class ViewModel {
                         &&
                         this.mutableHtmlAttributes.includes(o.replaceAttr)
                     ) {
-                        o.target.value = value;
+                        if(o.target.value) o.target.value = value;
+                        else o.target.setAttribute(o.mutationAttr, value)
                     } 
                 }
             })
