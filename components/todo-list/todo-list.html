@@ -1,0 +1,25 @@
+<template>
+    <h1 -content>My ToDO List</h1>
+    
+    <input -value="newTodoName"><button _click="addTodo">+</button>
+    <h6 -show="title" -class="classFromModel">item in array</h1>
+
+    <ul -loop="todo in todos">
+        <li :class="className">
+            <span -content class="done" -if="todo.completed">{{todo.name}} <button _click="setComplete(false, todId)" _args="todId: todo.id">☑️</button></span>
+            <span -content -if="!todo.completed">{{todo.name}} <button _click="setComplete(true, todId)" _args="todId: todo.id">⬜</button></span>
+        </li>
+    </ul>
+
+
+<style>
+    span {
+        color: red;
+    }
+    span.done {
+        color: green;
+    }
+</style>
+
+</template>
+

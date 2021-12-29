@@ -57,7 +57,7 @@ class ViewModel {
     model;
     bindings;
     muteMutations = false;
-    mutableHtmlAttributes = ['accept', 'accept-charset', 'accesskey', 'action', 'align', 'allow', 'alt', 'async', 'autocapitalize', 'autocomplete', 'autofocus', 'autoplay', 'background', 'bgcolor', 'border', 'buffered', 'capture', 'challenge', 'charset', 'checked', 'cite', 'class', 'code', 'codebase', 'color', 'cols', 'colspan', 'content', 'contenteditable', 'contextmenu', 'controls', 'coords', 'crossorigin', 'csp', 'data', 'data-*', 'datetime', 'decoding', 'default', 'defer', 'dir', 'dirname', 'disabled', 'download', 'draggable', 'enctype', 'enterkeyhint', 'for', 'form', 'formaction', 'formenctype', 'formmethod', 'formnovalidate', 'formtarget', 'headers', 'height', 'hidden', 'high', 'href', 'hreflang', 'http-equiv', 'icon', 'id', 'importance', 'integrity', 'intrinsicsize', 'inputmode', 'ismap', 'itemprop', 'keytype', 'kind', 'label', 'lang', 'language', 'loading', 'list', 'loop', 'low', 'manifest', 'max', 'maxlength', 'minlength', 'media', 'method', 'min', 'multiple', 'muted', 'name', 'novalidate', 'open', 'optimum', 'pattern', 'ping', 'placeholder', 'poster', 'preload', 'radiogroup', 'readonly', 'referrerpolicy', 'rel', 'required', 'reversed', 'rows', 'rowspan', 'sandbox', 'scope', 'scoped', 'selected', 'shape', 'size', 'sizes', 'slot', 'span', 'spellcheck', 'src', 'srcdoc', 'srclang', 'srcset', 'start', 'step', 'style', 'summary', 'tabindex', 'target', 'title', 'translate', 'type', 'usemap', 'value', 'width', 'wrap']
+    mutableHtmlAttributes = ['args', 'accept', 'accept-charset', 'accesskey', 'action', 'align', 'allow', 'alt', 'async', 'autocapitalize', 'autocomplete', 'autofocus', 'autoplay', 'background', 'bgcolor', 'border', 'buffered', 'capture', 'challenge', 'charset', 'checked', 'cite', 'class', 'code', 'codebase', 'color', 'cols', 'colspan', 'content', 'contenteditable', 'contextmenu', 'controls', 'coords', 'crossorigin', 'csp', 'data', 'data-*', 'datetime', 'decoding', 'default', 'defer', 'dir', 'dirname', 'disabled', 'download', 'draggable', 'enctype', 'enterkeyhint', 'for', 'form', 'formaction', 'formenctype', 'formmethod', 'formnovalidate', 'formtarget', 'headers', 'height', 'hidden', 'high', 'href', 'hreflang', 'http-equiv', 'icon', 'id', 'importance', 'integrity', 'intrinsicsize', 'inputmode', 'ismap', 'itemprop', 'keytype', 'kind', 'label', 'lang', 'language', 'loading', 'list', 'loop', 'low', 'manifest', 'max', 'maxlength', 'minlength', 'media', 'method', 'min', 'multiple', 'muted', 'name', 'novalidate', 'open', 'optimum', 'pattern', 'ping', 'placeholder', 'poster', 'preload', 'radiogroup', 'readonly', 'referrerpolicy', 'rel', 'required', 'reversed', 'rows', 'rowspan', 'sandbox', 'scope', 'scoped', 'selected', 'shape', 'size', 'sizes', 'slot', 'span', 'spellcheck', 'src', 'srcdoc', 'srclang', 'srcset', 'start', 'step', 'style', 'summary', 'tabindex', 'target', 'title', 'translate', 'type', 'usemap', 'value', 'width', 'wrap']
 
     constructor(initialModel) {
         const _self = this;
@@ -96,10 +96,12 @@ class ViewModel {
         if (Array.isArray(observable)) {
             observable.forEach(o => {
                 if(o?.bindType === 'collection') {
+                    console.log(value?.length , oldValue?.length)
                     if ( value?.length !== oldValue?.length ) {
                         console.log('re-render all')
                         o.target.innerHTML = o.replaceTemplate;
                         this.bindings.cleanCollectionItems(prop, o.id)
+                        console.log(value)
                         o.render(value, o.id);
                         o.bindEvents(o.target);
                         o.target.firstElementChild.remove();
@@ -146,4 +148,28 @@ class ViewModel {
 
         LOG && console.log(observable);
     }
+
+    // to parse Object paths
+    getObjPropByPath(obj, path = '') {
+        if (path.split('.').length <= 1 && !path.match(/^\w+\[\d+\]/g)) return obj[path];
+
+        /* ⚠ DONT USE THIS IN PRODUCTION */
+        // all this code is proof of concept an may not follow the best practices at times
+        // like the use of "eval", I just want to simplify my life ...             
+        try {
+            return eval(`obj.${path}`);
+        } catch (e) {
+            if (e instanceof SyntaxError) {
+                console.error(e.message);
+            }
+        }
+    }
+
+    getValue(val, model = this.model) {
+        if(typeof (val*1) === 'number' && !Number.isNaN(val*1)) return (val*1);
+        else if(val.includes("'")) return val;
+        else if(['true','false'].includes(val)) return !!val;
+        return getObjPropByPath(model,val) ?? false;
+    }
+
 }

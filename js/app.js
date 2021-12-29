@@ -50,7 +50,7 @@ function uuidv4() {
     );
   }
 //#region
-const BIND_ATTRIBUTES = ':not([-loop] [-content]),[-value],[-loop],[-if],[-show]';
+const BIND_ATTRIBUTES = ':not([-loop] [-content]),[-value],[-loop],[-if],[-show], [_args]';
 let obsElements = {};
 
 class DynamicView extends HTMLElement {
@@ -310,10 +310,22 @@ class DynamicView extends HTMLElement {
             this.bindings.addItem2(prop, {target: $el, mutationAttr: 'value', replaceAttr: 'value'})
 
 
-            $el.addEventListener('keyup', () => this.model[prop] = isNaN(this.model[prop]) ? $el.value.toString() : Number($el.value))
+            $el.addEventListener('keyup', () => this.model[prop] = $el.value) //isNaN(this.model[prop]) ? $el.value.toString() : Number($el.value))
 
             $el.removeAttribute('-value')
         }
+
+        if ($el.hasAttribute('_args')) {
+            const prop = $el.getAttribute('_args');
+
+            const [eventProp, modelProp] = prop.replaceAll(' ','').split(':');
+
+            const dataBindValue =  this.getObjPropByPath(model, modelProp);
+            $el.dataset[eventProp] = dataBindValue;
+            
+            //this.bindings.addItem2(modelProp, {target: $el, mutationAttr: 'args', replaceAttr: 'args'})
+            $el.removeAttribute('_args')
+        }        
         
         if ($el.hasAttribute('-class')) {
             const prop = $el.getAttribute('-class');
@@ -404,20 +416,19 @@ class DynamicView extends HTMLElement {
 
     bindEvents = async ($dom) => {
         const $bindingContainers = $dom.querySelectorAll('[_click]');
-
         $bindingContainers.forEach(($el) => {
             const validEventAttrs = ['_click'];
             const attrs = $el.attributes;
-
+            
             for (let i = attrs.length - 1; i >= 0; i--) {
                 const attr = attrs[i];
-                if (!validEventAttrs.includes(attr.name)) return;
-
+                if (!validEventAttrs.includes(attr.name)) continue;
+                
                 let [methodName, args] = attr.value.split('(');
-                args = args?.replace(')', '').split(',') ?? [];
+                args = args?.replace(')', '').replaceAll(' ','').split(',') ?? [];
 
                 if(this.methods.hasOwnProperty(methodName)) {
-                    $el.addEventListener(attr.name.substr(1), (e) => this.methods[methodName].call(this.model, e, ...args));
+                    $el.addEventListener(attr.name.substr(1), (e) => this.methods[methodName].call(this.model, e, ...args?.map(v => $el.dataset[v] ?? v)));
                 } else {
                     console.warn(`The method "${attr.value}" could not be found. Available methods: ${Object.keys(this.methods)}`)
                 }
